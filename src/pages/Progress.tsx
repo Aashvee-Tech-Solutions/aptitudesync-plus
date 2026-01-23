@@ -1,23 +1,17 @@
 import Navbar from "@/components/Navbar";
-import Hero from "@/components/Hero";
-import TestCategories from "@/components/TestCategories";
 import ProgressDashboard from "@/components/ProgressDashboard";
-import Leaderboard from "@/components/Leaderboard";
 import Footer from "@/components/Footer";
 
-const Index = () => {
+const Progress = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <main>
-        <Hero />
-        <TestCategories />
+      <main className="pt-24">
         <ProgressDashboard />
-        <Leaderboard />
       </main>
       <Footer />
     </div>
   );
 };
 
-export default Index;
+export default Progress;
