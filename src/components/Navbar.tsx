@@ -8,10 +8,12 @@ import {
   BarChart3, 
   User,
   Menu,
-  X 
+  X,
+  LogOut
 } from "lucide-react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const navItems = [
   { label: "Home", href: "/", icon: Home },
@@ -23,7 +25,14 @@ const navItems = [
 
 const Navbar = () => {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, profile, signOut } = useAuth();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  const handleLogout = async () => {
+    await signOut();
+    navigate("/");
+  };
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-b border-border">
@@ -62,15 +71,32 @@ const Navbar = () => {
 
           {/* Auth Buttons */}
           <div className="hidden md:flex items-center gap-3">
-            <Button variant="ghost" size="sm" asChild>
-              <Link to="/login">Log In</Link>
-            </Button>
-            <Button size="sm" asChild>
-              <Link to="/signup">
-                <User className="w-4 h-4 mr-1.5" />
-                Sign Up
-              </Link>
-            </Button>
+            {user ? (
+              <>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to="/dashboard">
+                    <User className="w-4 h-4 mr-1.5" />
+                    {profile?.full_name?.split(" ")[0] || "Dashboard"}
+                  </Link>
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleLogout}>
+                  <LogOut className="w-4 h-4 mr-1.5" />
+                  Logout
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link to="/login">Log In</Link>
+                </Button>
+                <Button size="sm" asChild>
+                  <Link to="/signup">
+                    <User className="w-4 h-4 mr-1.5" />
+                    Sign Up
+                  </Link>
+                </Button>
+              </>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -109,12 +135,25 @@ const Navbar = () => {
                 );
               })}
               <div className="flex gap-2 mt-4 px-4">
-                <Button variant="outline" className="flex-1" asChild>
-                  <Link to="/login">Log In</Link>
-                </Button>
-                <Button className="flex-1" asChild>
-                  <Link to="/signup">Sign Up</Link>
-                </Button>
+                {user ? (
+                  <>
+                    <Button variant="outline" className="flex-1" asChild>
+                      <Link to="/dashboard">Dashboard</Link>
+                    </Button>
+                    <Button className="flex-1" onClick={handleLogout}>
+                      Logout
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant="outline" className="flex-1" asChild>
+                      <Link to="/login">Log In</Link>
+                    </Button>
+                    <Button className="flex-1" asChild>
+                      <Link to="/signup">Sign Up</Link>
+                    </Button>
+                  </>
+                )}
               </div>
             </div>
           </div>
