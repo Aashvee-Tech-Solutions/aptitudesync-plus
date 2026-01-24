@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -27,15 +28,16 @@ import {
   FileQuestion,
   TrendingUp,
   Plus,
-  Settings,
   LogOut,
   Brain,
   Shield,
   Trash2,
   Edit,
+  LayoutDashboard,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
+import CourseManagement from "@/components/CourseManagement";
 
 interface Question {
   id: string;
@@ -91,6 +93,8 @@ const AdminDashboard = () => {
     const channel = supabase
       .channel("admin-updates")
       .on("postgres_changes", { event: "*", schema: "public", table: "questions" }, fetchData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "courses" }, fetchData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "modules" }, fetchData)
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -256,8 +260,8 @@ const AdminDashboard = () => {
           {[
             { label: "Total Users", value: stats.users, icon: Users, color: "text-primary" },
             { label: "Questions", value: stats.questions, icon: FileQuestion, color: "text-accent" },
-            { label: "Courses", value: stats.courses, icon: BookOpen, color: "text-success" },
-            { label: "Test Attempts", value: stats.attempts, icon: TrendingUp, color: "text-warning" },
+            { label: "Courses", value: stats.courses, icon: BookOpen, color: "text-green-500" },
+            { label: "Test Attempts", value: stats.attempts, icon: TrendingUp, color: "text-orange-500" },
           ].map((stat, i) => (
             <Card key={i}>
               <CardContent className="pt-6">
@@ -273,153 +277,176 @@ const AdminDashboard = () => {
           ))}
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-6">
-          {/* Questions Management */}
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <FileQuestion className="w-5 h-5" />
-                Questions
-              </CardTitle>
-              <Dialog open={isQuestionDialogOpen} onOpenChange={(open) => { setIsQuestionDialogOpen(open); if (!open) resetForm(); }}>
-                <DialogTrigger asChild>
-                  <Button size="sm">
-                    <Plus className="w-4 h-4 mr-1" /> Add Question
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                  <DialogHeader>
-                    <DialogTitle>{editingQuestion ? "Edit Question" : "Add New Question"}</DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 pt-4">
-                    <div>
-                      <Label>Category</Label>
-                      <Select value={categoryId} onValueChange={setCategoryId}>
-                        <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
-                        <SelectContent>
-                          {categories.map(c => (
-                            <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Difficulty</Label>
-                      <Select value={difficulty} onValueChange={setDifficulty}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="easy">Easy</SelectItem>
-                          <SelectItem value="medium">Medium</SelectItem>
-                          <SelectItem value="hard">Hard</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>Question</Label>
-                      <Textarea value={questionText} onChange={(e) => setQuestionText(e.target.value)} placeholder="Enter the question..." />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Options (Select the correct answer)</Label>
-                      {options.map((opt, i) => (
-                        <div key={i} className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            name="correct"
-                            checked={correctAnswer === i}
-                            onChange={() => setCorrectAnswer(i)}
-                            className="w-4 h-4"
-                          />
-                          <Input
-                            value={opt}
-                            onChange={(e) => {
-                              const newOpts = [...options];
-                              newOpts[i] = e.target.value;
-                              setOptions(newOpts);
-                            }}
-                            placeholder={`Option ${i + 1}`}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                    <div>
-                      <Label>Explanation (optional)</Label>
-                      <Textarea value={explanation} onChange={(e) => setExplanation(e.target.value)} placeholder="Explain the answer..." />
-                    </div>
-                    <Button onClick={handleSaveQuestion} className="w-full">
-                      {editingQuestion ? "Update Question" : "Create Question"}
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {questions.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-8">No questions yet. Add your first question!</p>
-                ) : (
-                  questions.map((q) => (
-                    <div key={q.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{q.question}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="secondary" className="text-xs">{q.difficulty}</Badge>
-                          <span className="text-xs text-muted-foreground">
-                            {categories.find(c => c.id === q.category_id)?.name}
-                          </span>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" onClick={() => handleEditQuestion(q)}>
-                          <Edit className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteQuestion(q.id)}>
-                          <Trash2 className="w-4 h-4 text-destructive" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
+        {/* Tabs for different sections */}
+        <Tabs defaultValue="overview" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
+            <TabsTrigger value="overview" className="gap-2">
+              <LayoutDashboard className="w-4 h-4" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="courses" className="gap-2">
+              <BookOpen className="w-4 h-4" />
+              Courses
+            </TabsTrigger>
+            <TabsTrigger value="users" className="gap-2">
+              <Users className="w-4 h-4" />
+              Users
+            </TabsTrigger>
+          </TabsList>
 
-          {/* User Management */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                User Management
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-96 overflow-y-auto">
-                {users.map((user) => (
-                  <div key={user.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                    <div>
-                      <p className="font-medium">{user.full_name}</p>
-                      <Badge variant={getUserRole(user.user_id) === "admin" ? "destructive" : getUserRole(user.user_id) === "instructor" ? "default" : "secondary"}>
-                        {getUserRole(user.user_id)}
-                      </Badge>
+          <TabsContent value="overview">
+            {/* Questions Management */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <FileQuestion className="w-5 h-5" />
+                  Questions
+                </CardTitle>
+                <Dialog open={isQuestionDialogOpen} onOpenChange={(open) => { setIsQuestionDialogOpen(open); if (!open) resetForm(); }}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <Plus className="w-4 h-4 mr-1" /> Add Question
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>{editingQuestion ? "Edit Question" : "Add New Question"}</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 pt-4">
+                      <div>
+                        <Label>Category</Label>
+                        <Select value={categoryId} onValueChange={setCategoryId}>
+                          <SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger>
+                          <SelectContent>
+                            {categories.map(c => (
+                              <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Difficulty</Label>
+                        <Select value={difficulty} onValueChange={setDifficulty}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="easy">Easy</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="hard">Hard</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Question</Label>
+                        <Textarea value={questionText} onChange={(e) => setQuestionText(e.target.value)} placeholder="Enter the question..." />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Options (Select the correct answer)</Label>
+                        {options.map((opt, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="correct"
+                              checked={correctAnswer === i}
+                              onChange={() => setCorrectAnswer(i)}
+                              className="w-4 h-4"
+                            />
+                            <Input
+                              value={opt}
+                              onChange={(e) => {
+                                const newOpts = [...options];
+                                newOpts[i] = e.target.value;
+                                setOptions(newOpts);
+                              }}
+                              placeholder={`Option ${i + 1}`}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <div>
+                        <Label>Explanation (optional)</Label>
+                        <Textarea value={explanation} onChange={(e) => setExplanation(e.target.value)} placeholder="Explain the answer..." />
+                      </div>
+                      <Button onClick={handleSaveQuestion} className="w-full">
+                        {editingQuestion ? "Update Question" : "Create Question"}
+                      </Button>
                     </div>
-                    <Select
-                      value={getUserRole(user.user_id)}
-                      onValueChange={(value: string) => handleUpdateUserRole(user.user_id, value)}
-                    >
-                      <SelectTrigger className="w-32">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="student">Student</SelectItem>
-                        <SelectItem value="instructor">Instructor</SelectItem>
-                        <SelectItem value="admin">Admin</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                  </DialogContent>
+                </Dialog>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {questions.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">No questions yet. Add your first question!</p>
+                  ) : (
+                    questions.map((q) => (
+                      <div key={q.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{q.question}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="secondary" className="text-xs">{q.difficulty}</Badge>
+                            <span className="text-xs text-muted-foreground">
+                              {categories.find(c => c.id === q.category_id)?.name}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button variant="ghost" size="icon" onClick={() => handleEditQuestion(q)}>
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleDeleteQuestion(q.id)}>
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </Button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="courses">
+            <CourseManagement isAdmin={true} />
+          </TabsContent>
+
+          <TabsContent value="users">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  User Management
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                  {users.map((user) => (
+                    <div key={user.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                      <div>
+                        <p className="font-medium">{user.full_name}</p>
+                        <Badge variant={getUserRole(user.user_id) === "admin" ? "destructive" : getUserRole(user.user_id) === "instructor" ? "default" : "secondary"}>
+                          {getUserRole(user.user_id)}
+                        </Badge>
+                      </div>
+                      <Select
+                        value={getUserRole(user.user_id)}
+                        onValueChange={(value: string) => handleUpdateUserRole(user.user_id, value)}
+                      >
+                        <SelectTrigger className="w-32">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="student">Student</SelectItem>
+                          <SelectItem value="instructor">Instructor</SelectItem>
+                          <SelectItem value="admin">Admin</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );

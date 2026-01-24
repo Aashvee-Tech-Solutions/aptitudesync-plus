@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Brain,
   LogOut,
@@ -16,9 +17,10 @@ import {
   Star,
   TrendingUp,
   Clock,
-  CheckCircle2,
+  GraduationCap,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
+import CourseDisplay from "@/components/CourseDisplay";
 
 interface Category {
   id: string;
@@ -43,14 +45,6 @@ interface Achievement {
   earned_at: string;
 }
 
-interface Course {
-  id: string;
-  title: string;
-  description: string | null;
-  duration_minutes: number;
-  category_id: string | null;
-}
-
 const StudentDashboard = () => {
   const { user, profile, signOut } = useAuth();
   const navigate = useNavigate();
@@ -58,7 +52,6 @@ const StudentDashboard = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [attempts, setAttempts] = useState<TestAttempt[]>([]);
   const [achievements, setAchievements] = useState<Achievement[]>([]);
-  const [courses, setCourses] = useState<Course[]>([]);
   const [stats, setStats] = useState({
     testsCompleted: 0,
     totalQuestions: 0,
@@ -75,6 +68,7 @@ const StudentDashboard = () => {
       .channel("student-updates")
       .on("postgres_changes", { event: "*", schema: "public", table: "test_attempts" }, fetchData)
       .on("postgres_changes", { event: "*", schema: "public", table: "achievements" }, fetchData)
+      .on("postgres_changes", { event: "*", schema: "public", table: "module_progress" }, fetchData)
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
@@ -118,13 +112,6 @@ const StudentDashboard = () => {
       .select("*")
       .eq("user_id", user?.id);
     if (ach) setAchievements(ach);
-
-    // Fetch published courses
-    const { data: crs } = await supabase
-      .from("courses")
-      .select("*")
-      .eq("published", true);
-    if (crs) setCourses(crs as Course[]);
   };
 
   const calculateStreak = (attempts: TestAttempt[]) => {
@@ -183,7 +170,7 @@ const StudentDashboard = () => {
             </span>
           </Link>
           <div className="flex items-center gap-4">
-            <Badge variant="gold" className="px-3 py-1">
+            <Badge variant="secondary" className="px-3 py-1">
               <Star className="w-3 h-3 mr-1" />
               Level {stats.level}
             </Badge>
@@ -223,7 +210,7 @@ const StudentDashboard = () => {
                   <p className="text-sm text-muted-foreground">Avg. Score</p>
                   <p className="text-3xl font-display font-bold">{stats.averageScore}%</p>
                 </div>
-                <TrendingUp className="w-8 h-8 text-success" />
+                <TrendingUp className="w-8 h-8 text-green-500" />
               </div>
             </CardContent>
           </Card>
@@ -245,7 +232,7 @@ const StudentDashboard = () => {
                   <p className="text-sm text-muted-foreground">Total XP</p>
                   <p className="text-3xl font-display font-bold">{stats.xp}</p>
                 </div>
-                <Trophy className="w-8 h-8 text-warning" />
+                <Trophy className="w-8 h-8 text-yellow-500" />
               </div>
             </CardContent>
           </Card>
@@ -256,125 +243,114 @@ const StudentDashboard = () => {
           <CardContent className="py-4">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <Badge variant="gold"><Star className="w-3 h-3 mr-1" />Level {stats.level}</Badge>
+                <Badge variant="secondary"><Star className="w-3 h-3 mr-1" />Level {stats.level}</Badge>
                 <span className="text-sm text-muted-foreground">{stats.xp} XP</span>
               </div>
               <span className="text-sm text-muted-foreground">{500 - (stats.xp % 500)} XP to Level {stats.level + 1}</span>
             </div>
-            <Progress value={(stats.xp % 500) / 5} variant="gradient" />
+            <Progress value={(stats.xp % 500) / 5} />
           </CardContent>
         </Card>
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Test Categories */}
-          <div className="lg:col-span-2">
-            <h2 className="text-xl font-display font-bold mb-4 flex items-center gap-2">
-              <Target className="w-5 h-5" />
-              Take a Test
-            </h2>
-            <div className="grid sm:grid-cols-2 gap-4">
-              {categories.map((category) => {
-                const catStats = getCategoryStats(category.id);
-                return (
-                  <Card key={category.id} variant="interactive">
-                    <CardContent className="pt-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div className={`p-3 rounded-xl bg-${category.color} text-${category.color}-foreground shadow-md`}>
-                          <BookOpen className="w-5 h-5" />
-                        </div>
-                        {catStats.bestScore > 0 && (
-                          <Badge variant="success" className="text-xs">
-                            Best: {catStats.bestScore}%
-                          </Badge>
-                        )}
-                      </div>
-                      <h3 className="font-semibold mb-1">{category.name}</h3>
-                      <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{category.description}</p>
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs text-muted-foreground">{catStats.attempts} attempts</span>
-                        <Button size="sm" asChild>
-                          <Link to={`/test/${category.id}`}>
-                            <Play className="w-3 h-3 mr-1" />
-                            Start
-                          </Link>
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                );
-              })}
-            </div>
-          </div>
+        {/* Tabs */}
+        <Tabs defaultValue="tests" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid">
+            <TabsTrigger value="tests" className="gap-2">
+              <Target className="w-4 h-4" />
+              Practice Tests
+            </TabsTrigger>
+            <TabsTrigger value="courses" className="gap-2">
+              <GraduationCap className="w-4 h-4" />
+              Courses
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Recent Activity & Courses */}
-          <div className="space-y-6">
-            {/* Recent Tests */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Clock className="w-5 h-5" />
-                  Recent Tests
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {attempts.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">No tests taken yet</p>
-                ) : (
-                  <div className="space-y-3">
-                    {attempts.slice(0, 5).map((attempt) => {
-                      const category = categories.find(c => c.id === attempt.category_id);
-                      const percentage = Math.round((attempt.score / attempt.total_questions) * 100);
-                      return (
-                        <div key={attempt.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
-                          <div>
-                            <p className="text-sm font-medium">{category?.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(attempt.completed_at).toLocaleDateString()}
-                            </p>
+          <TabsContent value="tests">
+            <div className="grid lg:grid-cols-3 gap-6">
+              {/* Test Categories */}
+              <div className="lg:col-span-2">
+                <h2 className="text-xl font-display font-bold mb-4 flex items-center gap-2">
+                  <Target className="w-5 h-5" />
+                  Take a Test
+                </h2>
+                <div className="grid sm:grid-cols-2 gap-4">
+                  {categories.map((category) => {
+                    const catStats = getCategoryStats(category.id);
+                    return (
+                      <Card key={category.id} className="hover:shadow-md transition-shadow">
+                        <CardContent className="pt-6">
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="p-3 rounded-xl bg-primary/10">
+                              <BookOpen className="w-5 h-5 text-primary" />
+                            </div>
+                            {catStats.bestScore > 0 && (
+                              <Badge variant="secondary" className="text-xs bg-green-500/10 text-green-600">
+                                Best: {catStats.bestScore}%
+                              </Badge>
+                            )}
                           </div>
-                          <Badge variant={percentage >= 70 ? "success" : percentage >= 50 ? "warning" : "destructive"}>
-                            {percentage}%
-                          </Badge>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                          <h3 className="font-semibold mb-1">{category.name}</h3>
+                          <p className="text-sm text-muted-foreground mb-4 line-clamp-2">{category.description}</p>
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-muted-foreground">{catStats.attempts} attempts</span>
+                            <Button size="sm" asChild>
+                              <Link to={`/test/${category.id}`}>
+                                <Play className="w-3 h-3 mr-1" />
+                                Start
+                              </Link>
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
 
-            {/* Available Courses */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <BookOpen className="w-5 h-5" />
-                  Learn & Improve
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {courses.length === 0 ? (
-                  <p className="text-muted-foreground text-center py-4">No courses available yet</p>
-                ) : (
-                  <div className="space-y-2">
-                    {courses.slice(0, 4).map((course) => (
-                      <Link
-                        key={course.id}
-                        to={`/learn/${course.id}`}
-                        className="flex items-center justify-between p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
-                      >
-                        <div className="min-w-0">
-                          <p className="text-sm font-medium truncate">{course.title}</p>
-                          <p className="text-xs text-muted-foreground">{course.duration_minutes} mins</p>
-                        </div>
-                        <CheckCircle2 className="w-4 h-4 text-muted-foreground" />
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </div>
+              {/* Recent Activity */}
+              <div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <Clock className="w-5 h-5" />
+                      Recent Tests
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {attempts.length === 0 ? (
+                      <p className="text-muted-foreground text-center py-4">No tests taken yet</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {attempts.slice(0, 5).map((attempt) => {
+                          const category = categories.find(c => c.id === attempt.category_id);
+                          const percentage = Math.round((attempt.score / attempt.total_questions) * 100);
+                          return (
+                            <div key={attempt.id} className="flex items-center justify-between p-2 rounded-lg bg-muted/50">
+                              <div>
+                                <p className="text-sm font-medium">{category?.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {new Date(attempt.completed_at).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <Badge variant={percentage >= 70 ? "default" : percentage >= 50 ? "secondary" : "destructive"} 
+                                     className={percentage >= 70 ? "bg-green-500/10 text-green-600" : ""}>
+                                {percentage}%
+                              </Badge>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="courses">
+            <CourseDisplay />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
