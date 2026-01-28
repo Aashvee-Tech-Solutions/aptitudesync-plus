@@ -17,6 +17,7 @@ import Dashboard from "./pages/Dashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import InstructorDashboard from "./pages/InstructorDashboard";
 import StudentDashboard from "./pages/StudentDashboard";
+import Compiler from "./pages/Compiler";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
             <Route path="/learn" element={<Learn />} />
             <Route path="/learn/:id" element={<Learn />} />
             <Route path="/leaderboard" element={<LeaderboardPage />} />
+            <Route path="/compiler" element={<Compiler />} />
             <Route path="/progress" element={<Progress />} />
             <Route
               path="/dashboard"
