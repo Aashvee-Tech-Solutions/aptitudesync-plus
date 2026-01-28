@@ -9,7 +9,8 @@ import {
   User,
   Menu,
   X,
-  LogOut
+  LogOut,
+  Code
 } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState } from "react";
@@ -19,6 +20,7 @@ const navItems = [
   { label: "Home", href: "/", icon: Home },
   { label: "Tests", href: "/tests", icon: FileText },
   { label: "Learn", href: "/learn", icon: BookOpen },
+  { label: "Compiler", href: "/compiler", icon: Code },
   { label: "Leaderboard", href: "/leaderboard", icon: Trophy },
   { label: "Progress", href: "/progress", icon: BarChart3 },
 ];
